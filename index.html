@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 몬티 홀 쇼 (Monty Hall Show)</title>
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --stage-color: #1f2833;
+            --curtain-color: #8b0000;
+            --gold: #f1c40f;
+        }
+        body {
+            font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+            background-color: var(--bg-color);
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        /* 극장 무대 및 커튼 레이아웃 */
+        .theater {
+            position: relative;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+            padding: 40px 20px;
+        }
+        /* 왼쪽 커튼 */
+        .curtain-left {
+            position: fixed;
+            left: 0; top: 0; bottom: 0; width: 80px;
+            background: linear-gradient(90deg, #4a0000 0%, var(--curtain-color) 70%, #5c0000 100%);
+            box-shadow: 5px 0 15px rgba(0,0,0,0.7);
+            z-index: 10;
+        }
+        /* 오른쪽 커튼 */
+        .curtain-right {
+            position: fixed;
+            right: 0; top: 0; bottom: 0; width: 80px;
+            background: linear-gradient(-90deg, #4a0000 0%, var(--curtain-color) 70%, #5c0000 100%);
+            box-shadow: -5px 0 15px rgba(0,0,0,0.7);
+            z-index: 10;
+        }
+
+        .main-container {
+            max-width: 700px;
+            width: 100%;
+            z-index: 2;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        h1 { text-align: center; color: var(--gold); font-size: 2.5rem; text-shadow: 0 0 10px rgba(241,196,15,0.5); margin-bottom: 5px;}
+        .subtitle { text-align: center; color: #c5a059; margin-bottom: 40px; font-style: italic; }
+
+        /* 무대 위 조명 받는 문 */
+        .stage-floor {
+            background-color: var(--stage-color);
+            border-radius: 15px;
+            padding: 30px 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(255,255,255,0.05);
+            border: 2px solid #2f3e46;
+            margin-bottom: 25px;
+        }
+        .doors-container {
+            display: flex;
+            justify-content: space-around;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .door {
+            flex: 1;
+            height: 200px;
+            background: linear-gradient(135deg, #d35400 0%, #a04000 100%);
+            border: 5px solid #e67e22;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+        .door:hover { transform: translateY(-5px); border-color: var(--gold); box-shadow: 0 15px 25px rgba(241,196,15,0.3); }
+        .door.selected { border-color: var(--gold); box-shadow: 0 0 25px var(--gold); transform: scale(1.05); }
+        .door.opened { background: #455a64; border-color: #78909c; cursor: default; transform: none; }
+        .door-label { font-size: 1.1rem; font-weight: bold; color: #fff; margin-bottom: 10px; text-shadow: 1px 1px 3px #000; }
+        .emoji { font-size: 45px; }
+
+        /* 메시지 보드 및 버튼 */
+        .status-board {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #455a64;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .btn-group { display: flex; flex-direction: column; gap: 12px; }
+        button.show-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .btn-keep { background: #34495e; color: white; border: 1px solid #5d6d7e; }
+        .btn-switch { background: #27ae60; color: white; box-shadow: 0 4px 10px rgba(39,174,96,0.3); }
+        .btn-reset { background: var(--gold); color: #000; font-size: 1.2rem; }
+        button.show-btn:hover { filter: brightness(1.2); }
+
+        /* 플레이 기록 스코어 */
+        .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; }
+        .score-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; text-align: center; }
+        .score-val { font-size: 1.8rem; font-weight: bold; color: var(--gold); margin: 5px 0; }
+
+        /* 💡 대망의 교육적 의미 섹션 */
+        .education-box {
+            background: linear-gradient(180deg, #1a1c23 0%, #111318 100%);
+            border: 2px solid var(--gold);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 35px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: none; /* 게임 종료 시 등장 */
+            animation: fadeIn 0.8s ease-in-out forwards;
+        }
+        .education-box h2 { color: var(--gold); margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .education-box p { color: #b3bp; line-height: 1.6; font-size: 0.95rem; color: #eceff1; }
+        .education-box ul { padding-left: 20px; color: #cfd8dc; }
+        .education-box li { margin-bottom: 10px; }
+
+        /* 🤖 자동 시뮬레이션 섹션 */
+        .sim-section {
+            background: #151a22;
+            border: 1px dashed #455a64;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 40px;
+        }
+        .sim-section h2 { color: #3498db; margin-top: 0; text-align: center; }
+        .sim-control { display: flex; flex-direction: column; gap: 15px; }
+        .sim-control input[type=range] { width: 100%; height: 8px; background: #333; border-radius: 5px; }
+        
+        /* 게이지 바 그래프 */
+        .bar-wrapper { background: #222; border-radius: 4px; height: 30px; margin: 10px 0; overflow: hidden; }
+        .bar-fill { height: 100%; width: 0%; transition: width 0.6s cubic-bezier(0.1, 1, 0.1, 1); display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: white; font-weight: bold; font-size: 0.9rem; box-sizing: border-box;}
+        .bg-keep { background-color: #4f5b66; }
+        .bg-switch { background-color: #27ae60; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="curtain-left"></div>
+<div class="curtain-right"></div>
+
+<div class="theater">
+    <div class="main-container">
+        <h1>🎬 THE MONTY HALL SHOW</h1>
+        <div class="subtitle">~ 직관을 깨부수는 확률 극장 ~</div>
+
+        <div class="stage-floor">
+            <div class="doors-container">
+                <div class="door" id="door-0" onclick="selectDoor(0)">
+                    <div class="door-label">1번 문</div>
+                    <div class="emoji" id="emoji-0">🚪</div>
+                </div>
+                <div class="door" id="door-1" onclick="selectDoor(1)">
+                    <div class="door-label">2번 문</div>
+                    <div class="emoji" id="emoji-1">🚪</div>
+                </div>
+                <div class="door" id="door-2" onclick="selectDoor(2)">
+                    <div class="door-label">3번 문</div>
+                    <div class="emoji" id="emoji-2">🚪</div>
+                </div>
+            </div>
+
+            <div class="status-board" id="status-msg">
+                신사 숙녀 여러분! 무대 위의 세 개의 문 중 하나를 선택해 주세요.<br>하나의 문 뒤에는 <b>번쩍이는 자동차(🚗)</b>가, 나머지 둘에는 <b>염소(🐐)</b>가 있습니다!
+            </div>
+
+            <div class="btn-group" id="choice-buttons" style="display: none;">
+                <button class="show-btn btn-switch" onclick="makeFinalDecision(true)">🔄 다른 문으로 바꾸기 (Switch)</button>
+                <button class="show-btn btn-keep" onclick="makeFinalDecision(false)">🔒 처음 선택 유지하기 (Keep)</button>
+            </div>
+            
+            <button class="show-btn btn-reset" id="reset-btn" onclick="initGame()" style="display: none;">🔄 다음 라운드 진행하기</button>
+        </div>
+
+        <div class="scoreboard">
+            <div class="score-card">
+                <div style="color: #bbb; font-size: 0.9rem;">유지했을 때 승률</div>
+                <div class="score-val" id="rate-keep">0%</div>
+                <div id="count-keep" style="font-size: 0.8rem; color: #888;">0승 / 0회 플레이</div>
+            </div>
+            <div class="score-card">
+                <div style="color: #bbb; font-size: 0.9rem;">바꿨을 때 승률</div>
+                <div class="score-val" id="rate-change">0%</div>
+                <div id="count-change" style="font-size: 0.8rem; color: #888;">0승 / 0회 플레이</div>
+            </div>
+        </div>
+
+        <div class="education-box" id="edu-box">
+            <h2>📊 이번 게임의 확률 분석 및 교육적 의미</h2>
+            <p>방금 하신 선택의 결과가 어떠셨나요? 몬티 홀 문제는 <b>인간의 직관이 수학적 확률 앞에 얼마나 쉽게 무너지는지</b>를 보여주는 가장 완벽한 예시입니다.</p>
+            <ul>
+                <li><b>바꾸는 게 무조건 이득인 이유:</b> 처음 문을 골랐을 때 자동차를 맞출 확률은 <b>1/3(약 33.3%)</b>이고, 틀릴(염소를 고를) 확률은 <b>2/3(약 66.7%)</b>입니다.</li>
+                <li><b>사회자의 역할 (조건부 확률):</b> 사회자는 아무 문이나 여는 것이 아니라, <b>'내가 고르지 않은 문 중 염소가 든 문'을 반드시 강제로 필터링해서 열어줍니다.</b></li>
+                <li><b>확률의 이동:</b> 따라서 내가 처음에 염소를 골랐다면(66.7% 확률), 사회자가 다른 염소를 치워줬기 때문에 <b>선택을 바꾸는 순간 무조건 자동차를 얻게 됩니다.</b> 즉, 바꾸는 전략의 승률은 처음 틀릴 확률인 <b>2/3</b>로 껑충 뛰게 됩니다!</li>
+            </ul>
+            <p style="text-align: center; color: var(--gold); font-weight: bold; margin-top: 15px; border-top: 1px dashed #444; padding-top: 15px;">
+                💡 직관적으로는 반반(50:50) 같지만, 수학적으로는 '바꾸기'가 2배 유리합니다!
+            </p>
+        </div>
+
+        <div class="sim-section">
+            <h2>📊 1만 회 초고속 자동 시뮬레이션</h2>
+            <div class="sim-control">
+                <label for="sim-range" style="font-size: 0.95rem;">컴퓨터 모의실험 횟수: <span id="sim-count-txt" style="color:var(--gold); font-weight:bold;">1000</span>번</label>
+                <input type="range" id="sim-range" min="100" max="10000" step="100" value="1000" oninput="document.getElementById('sim-count-txt').innerText=this.value">
+                <button class="show-btn btn-switch" style="background:#3498db; box-shadow:none;" onclick="runSimulation()">⚡ 시뮬레이션 즉시 실행</button>
+            </div>
+            
+            <div id="sim-result-msg" style="margin-top: 15px; font-size: 0.95rem; color:#bdc3c7; text-align:center;"></div>
+            
+            <div style="margin-top: 15px;">
+                <div style="font-size: 0.85rem; margin-bottom: 2px; color:#bbb;">유지하기(Keep) 전략 승률</div>
+                <div class="bar-wrapper">
+                    <div id="bar-keep" class="bar-fill bg-keep">0%</div>
+                </div>
+                <div style="font-size: 0.85rem; margin-bottom: 2px; color:#bbb; margin-top: 10px;">바꾸기(Switch) 전략 승률</div>
+                <div class="bar-wrapper">
+                    <div id="bar-change" class="bar-fill bg-switch">0%</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    let doors = ['🐐', '🐐', '🚗'];
+    let stage = 1; 
+    let userChoice = null;
+    let hostRevealed = null;
+    let stats = { keepWins: 0, keepTotal: 0, changeWins: 0, changeTotal: 0 };
+
+    function initGame() {
+        stage = 1;
+        userChoice = null;
+        hostRevealed = null;
+        
+        // 피셔-예이츠 셔플
+        doors = ['🐐', '🐐', '🚗'];
+        for (let i = doors.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [doors[i], doors[j]] = [doors[j], doors[i]];
+        }
+
+        document.getElementById('status-msg').innerHTML = "신사 숙녀 여러분! 무대 위의 세 개의 문 중 하나를 선택해 주세요.<br>하나의 문 뒤에는 <b>번쩍이는 자동차(🚗)</b>가 숨어있습니다!";
+        document.getElementById('choice-buttons').style.display = 'none';
+        document.getElementById('reset-btn').style.display = 'none';
+
+        for(let i=0; i<3; i++) {
+            let d = document.getElementById(`door-${i}`);
+            d.className = 'door';
+            document.getElementById(`emoji-${i}`).innerText = '🚪';
+        }
+    }
+
+    function selectDoor(idx) {
+        if (stage !== 1) return;
+        userChoice = idx;
+        document.getElementById(`door-${idx}`).classList.add('selected');
+
+        let possibleReveals = [];
+        for(let i=0; i<3; i++) {
+            if(i !== userChoice && doors[i] === '🐐') {
+                possibleReveals.push(i);
+            }
+        }
+        
+        hostRevealed = possibleReveals[Math.floor(Math.random() * possibleReveals.length)];
+        
+        let hostDoor = document.getElementById(`door-${hostRevealed}`);
+        hostDoor.classList.add('opened');
+        document.getElementById(`emoji-${hostRevealed}`).innerText = '🐐';
+
+        stage = 2;
+        document.getElementById('status-msg').innerHTML = `💡 탁월한 선택! <b>${idx+1}번 문</b>을 마음에 두셨군요.<br>🧙 이때, 문 뒤를 다 아는 사회자가 🐐염소가 든 <b>${hostRevealed+1}번 문</b>을 열어 청중에게 공개했습니다!<br><span style='color:var(--gold); font-weight:bold;'>자, 처음에 고른 문을 유지하시겠습니까? 아니면 다른 문으로 바꾸시겠습니까?</span>`;
+        document.getElementById('choice-buttons').style.display = 'flex';
+    }
+
+    function makeFinalDecision(isSwitch) {
+        if (stage !== 2) return;
+        
+        let finalChoice = userChoice;
+        if (isSwitch) {
+            for(let i=0; i<3; i++) {
+                if(i !== userChoice && i !== hostRevealed) finalChoice = i;
+            }
+        }
+
+        let isWin = (doors[finalChoice] === '🚗');
+        if (isSwitch) {
+            stats.changeTotal++;
+            if(isWin) stats.changeWins++;
+        } else {
+            stats.keepTotal++;
+            if(isWin) stats.keepWins++;
+        }
+
+        stage = 3;
+        document.getElementById('choice-buttons').style.display = 'none';
+        document.getElementById('reset-btn').style.display = 'block';
+
+        // 모든 문 오픈
+        for(let i=0; i<3; i++) {
+            let d = document.getElementById(`door-${i}`);
+            document.getElementById(`emoji-${i}`).innerText = doors[i];
+            d.classList.add('opened');
+            if(i === finalChoice) {
+                d.classList.remove('opened');
+                d.classList.add(isWin ? 'selected' : 'opened');
+            }
+        }
+
+        if(isWin) {
+            document.getElementById('status-msg').innerHTML = `<span style='color:#27ae60; font-size:1.4rem; font-weight:bold;'>🎉 축하합니다! 자동차(🚗) 획득 성공!</span>`;
+        } else {
+            document.getElementById('status-msg').innerHTML = `<span style='color:#e74c3c; font-size:1.4rem; font-weight:bold;'>🐐 아쉽습니다! 염소를 선택하셨습니다.</span>`;
+        }
+
+        updateScoreboard();
+        
+        // 게임이 종료되면 교육적 의미 분석 상자 표출
+        document.getElementById('edu-box').style.display = 'block';
+    }
+
+    function updateScoreboard() {
+        let keepRate = stats.keepTotal > 0 ? ((stats.keepWins / stats.keepTotal) * 100).toFixed(1) : 0;
+        let changeRate = stats.changeTotal > 0 ? ((stats.changeWins / stats.changeTotal) * 100).toFixed(1) : 0;
+
+        document.getElementById('rate-keep').innerText = keepRate + '%';
+        document.getElementById('count-keep').innerText = `${stats.keepWins}승 / ${stats.keepTotal}회 플레이`;
+
+        document.getElementById('rate-change').innerText = changeRate + '%';
+        document.getElementById('count-change').innerText = `${stats.changeWins}승 / ${stats.changeTotal}회 플레이`;
+    }
+
+    function runSimulation() {
+        let count = parseInt(document.getElementById('sim-range').value);
+        let keepWins = 0;
+        let changeWins = 0;
+
+        for(let i=0; i<count; i++) {
+            let simDoors = ['🐐', '🐐', '🚗'];
+            for (let s = 2; s > 0; s--) {
+                const j = Math.floor(Math.random() * (s + 1));
+                [simDoors[s], simDoors[j]] = [simDoors[j], simDoors[s]];
+            }
+            let myChoice = Math.floor(Math.random() * 3);
+
+            if(simDoors[myChoice] === '🚗') keepWins++;
+            if(simDoors[myChoice] === '🐐') changeWins++; 
+        }
+
+        let keepRate = ((keepWins / count) * 100).toFixed(1);
+        let changeRate = ((changeWins / count) * 100).toFixed(1);
+
+        document.getElementById('sim-result-msg').innerHTML = `🎩 <b>${count}회 연속 쇼 진행 결과:</b> 바꾸기 전략이 <b>${changeWins}번</b>, 유지하기가 <b>${keepWins}번</b> 자동차를 가져갔습니다.`;
+
+        // 내장 그래픽 바 애니메이션 업데이트
+        document.getElementById('bar-keep').style.width = keepRate + '%';
+        document.getElementById('bar-keep').innerText = keepRate + '%';
+        
+        document.getElementById('bar-change').style.width = changeRate + '%';
+        document.getElementById('bar-change').innerText = changeRate + '%';
+    }
+
+    // 첫 세팅
+    initGame();
+</script>
+</body>
+</html>
